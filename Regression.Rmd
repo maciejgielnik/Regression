@@ -1,0 +1,152 @@
+---
+title: "Regression Models Course Project"
+author: "Maciej Gielnik"
+date: "18/12/2020"
+output:
+  pdf_document: default
+  html_document: default
+header-includes:
+  \usepackage{float}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Executive summary
+In this course project I was trying to answer if the type of transmission has
+an impact on gasoline usage by cars from mtcars dataset. In conclusion the MPG 
+does not depend on transmission type, because 95% confidence interval contain 0.
+Other variables like weight (wt) and horsepower (hp) with 95% confidence interval
+have a negative impact on MPG.
+
+## Introduction
+The goal of this report was an attempt to answer the following questions:
+
+* Is an automatic or manual transmission better for MPG?
+* Is it possible to quantify the MPG difference between automatic and manual 
+transmissions? If so, how?
+
+## Results
+To answer for the questions I have analyzed the mtcars dataset. The type of 
+transmission is located in the mtcars dataset in "am" column. It can take two 
+values: 0 for the automatic transmission and 1 for the manual transmission. In 
+order to inspect if the type of transmission has infuence on MPG I have plotted
+miles per galon (MPG) in function of transmission using ggplot2 (Figure 1).
+
+```{r loading ggplot2, fig.height = 2, fig.width = 4, fig.align='center', echo=FALSE}
+library(ggplot2)
+library(ggpubr) 
+a <- ggplot(mtcars, aes(y = mpg, x = am))
+a1 <- a + geom_point() 
+a2 <- a1 + labs(title = "Figure 1 A", x = "Transmission type", y = "MPG") + 
+    theme(plot.title = element_text(hjust = 0.5))
+a <- a1 + geom_smooth(method = "lm", formula = y ~ x)+ labs(title = "Figure 1 B", x = "Transmission type", y = "MPG") + 
+    theme(plot.title = element_text(hjust = 0.5))
+ggarrange(a2, a, ncol = 2, nrow = 1)
+
+```
+The mean of MPG with manual transmission (Figure 1 A, transmission type 1) seems to
+be much larger than for MPG with automatic transmission (Figure 1 A, transmission
+type 0). To make more detailed analysis I have performed linear regression (Figure 1 B). The 
+regression line is marked on Figure 1 as blue line and the gray envelope corresponds 
+to 95% confidence interval.
+```{r regression_1}
+fit1 <- lm(mpg ~ factor(am),  mtcars)
+summary(fit1)$coeff
+```
+The intercept corresponds to mean value of MPG with automatic transmission, where
+the slope corresponds to increase in mean of MPG with manual transmission. The
+regression suggest that cars with manual transmission can travel on average ~7.24
+miles further per gallon of gasoline, however **R^2 test was below 0.36** suggesting
+a poor model fit.
+```{r factor, echo=FALSE}
+mtcars$am <- as.factor(mtcars$am)
+```
+What other variables can have an impact on gasoline usage? For sure weight of a
+car - the more car weight, the more gasoline is uses. Also horsepower should 
+contribute to gasoline usage - the more power, the more gasoline car engine 
+needs to perform a mechanical work. Those ideas are supported with exploratory
+analysis in Figure Supplement 1 A, B. Also preliminary linear regression suggest
+different gasoline usage in function of horsepower for different transmission 
+types (Figure Supplement 1 C). Similar differences was observed for MPG in 
+function of weight for different types of transmission (Figure Supplement 1 D).
+
+Taking those considerations into account I have created three additional models,
+where MPG depends on:
+
+* transmission type and horsepower (fit2),
+* transmission type, horsepower and weight (fit3),
+* transmission type, horsepower, weight and interaction between horsepower and
+weight (fit4).
+
+The interaction between horsepower and weight has been takes into account 
+because the more car weight, the more power engine needs to speed up the car.
+```{r models, echo = FALSE}
+fit2 <- lm(mpg ~ factor(am) + hp,  mtcars)
+fit3 <- lm(mpg ~ factor(am) + hp + wt,  mtcars)
+fit4 <- lm(mpg ~ factor(am) + hp + wt + I(hp * wt),  mtcars)
+```
+The accuracy of models was tested with the analysis of the variance.
+```{r anova}
+anova(fit1, fit2, fit3, fit4)
+```
+
+The residual sum of squared decreased with including horse power, weight and 
+interaction between horsepower and weight, indicating better fit of models
+to data.
+
+In order to discuss the meaning of coefficients, the 95% confidence interval was calculated for each coefficient. 
+```{r fit4 summary}
+summary(fit4)$coeff
+confint(fit4)
+```
+**In summary:**
+
+* Within 95% confidence interval it is impossible to conclude whether automatic 
+or manual transmission results in MPG, because the confidence interval inculdes 0.
+* With 95% confidence interval increase in one horse power decrease the MPG, on 
+average 0.17, holding other coefficients constant,
+* With 95% confidence interval increase in one unit of wt (1000 lbs) decrease 
+the MPG, with average 8.1, holding other coefficients constant,
+* With 95% confidence interval increase in one unit of interaction bewteen
+horsepower and weight in 1000 lbs increase the MPG, on average ~0.03, holding 
+other coefficients constant,
+
+## Supplementary data
+
+```{r exploratory, echo = FALSE}
+b <- ggplot(mtcars, aes(y = mpg, x = hp, factor = am, color = factor(am)))
+b <- b + geom_point()
+b <- b + labs(title = "Fig S 1 A", x = "Horse power", y = "MPG", color = "transmission")
+b <- b + theme(plot.title = element_text(hjust = 0.5))
+
+
+b2 <- b + geom_smooth(method = "lm", formula = y ~ x) + labs(title = "Fig S 1 C")
+
+
+c <- ggplot(mtcars, aes(y = mpg, x = wt, factor = am, color = factor(am)))
+c <- c + geom_point()
+c <- c + labs(title = "Fig S 1 B", x = "Weight (1000 lbs)", y = "MPG", color = "transmission")
+c <- c + theme(plot.title = element_text(hjust = 0.5))
+
+
+c2 <- c + geom_smooth(method = "lm", formula = y ~ x) + labs(title = "Fig S 1 D")
+
+
+ggarrange(b, c, b2, c2, ncol = 2, nrow = 2)
+```
+
+```{r residual plot, fig.align='center', echo=FALSE}
+par(mfrow = c(2,2))
+plot(fit1, which = 1, title("Fig S 2 A - residuals for model 1"))
+plot(fit2, which = 1, title("Fig S 2 B - residuals for model 2"))
+plot(fit3, which = 1, title("Fig S 2 C - residuals for model 3"))
+plot(fit4, which = 1, title("Fig S 2 D - residuals for model 4"))
+```
+
+
+
+
+
+
+
